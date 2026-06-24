@@ -4,6 +4,8 @@ export interface IOTP extends Document {
   phoneNumber: string;
   otp: string;
   expiresAt: Date;
+  attempts: number;
+  isUsed: boolean;
 }
 
 const otpSchema = new Schema<IOTP>(
@@ -22,6 +24,16 @@ const otpSchema = new Schema<IOTP>(
     expiresAt: {
       type: Date,
       required: true,
+    },
+
+    attempts: {
+      type: Number,
+      default: 0,
+    },
+
+    isUsed: {
+      type: Boolean,
+      default: false,
     },
   },
   {

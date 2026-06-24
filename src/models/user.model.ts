@@ -5,6 +5,8 @@ export interface IUser extends Document {
   email?: string;
   phoneNumber: string;
   isVerified: boolean;
+  profileImage?: string;
+  isDeleted: boolean;
 }
 
 const userSchema = new Schema<IUser>(
@@ -31,6 +33,14 @@ const userSchema = new Schema<IUser>(
     isVerified: {
       type: Boolean,
       default: true,
+    },
+    profileImage: {
+      type: String,
+      default: null,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {

@@ -1,15 +1,15 @@
 import dotenv from "dotenv";
-
+import { cleanEnv, str, port } from "envalid";
 dotenv.config();
 
-export const env = {
-  PORT: process.env.PORT || "5000",
+export const env = cleanEnv(process.env, {
+  PORT: port(),
 
-  NODE_ENV: process.env.NODE_ENV || "development",
+  NODE_ENV: str(),
 
-  MONGODB_URI: process.env.MONGODB_URI || "",
+  MONGODB_URI: str(),
 
-  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "",
+  JWT_ACCESS_SECRET: str(),
 
-  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || "",
-};
+  JWT_REFRESH_SECRET: str(),
+});
