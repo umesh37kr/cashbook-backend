@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import { globalErrorHandler } from "./middleware/error.middleware.js";
+import { globalErrorHandler } from "./common/middlewares/error.middleware.js";
 import routes from "./routes/index.js";
 
 const app = express();

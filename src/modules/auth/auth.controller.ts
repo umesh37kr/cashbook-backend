@@ -1,9 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
-import { catchAsync } from "../../common/catchAsync.js";
+import { catchAsync } from "../../common/utils/catchAsync.js";
 
 import * as AuthService from "./auth.service.js";
 
-import { sendResponse } from "../../utils/response.js";
+import { sendResponse } from "../../common/responses/sendResponse.js";
 
 // Send OTP
 export const sendOTP = catchAsync(async (req, res) => {

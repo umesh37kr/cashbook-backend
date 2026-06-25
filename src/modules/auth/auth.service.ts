@@ -1,11 +1,15 @@
 import { OTP } from "../../models/otp.model.js";
 import { User } from "../../models/user.model.js";
 
-import { generateOTP } from "../../utils/otp.js";
+import { generateOTP } from "../../common/helpers/otp.helper.js";
 
-import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../../common/helpers/jwt.helper.js";
 
-import { AppError } from "../../common/AppError.js";
+import { AppError } from "../../common/errors/AppError.js";
+import type { RegisterDto } from "./auth.types.js";
 
 // sendOTP
 export const sendOTP = async (phoneNumber: string) => {
@@ -27,12 +31,7 @@ export const sendOTP = async (phoneNumber: string) => {
 };
 // TO DO:  will become MSG91 integration.
 // registerUser
-export const register = async (payload: {
-  name: string;
-  email?: string;
-  phoneNumber: string;
-  otp: string;
-}) => {
+export const register = async (payload: RegisterDto) => {
   const { name, email, phoneNumber, otp } = payload;
 
   // Check existing user:

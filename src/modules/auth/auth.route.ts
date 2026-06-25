@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import * as AuthController from "./auth.controller.js";
 
-import { validateRequest } from "../../middleware/validate.middleware.js";
+import { validateRequest } from "../../common/middlewares/validate.middleware.js";
 
 import {
   sendOtpSchema,
