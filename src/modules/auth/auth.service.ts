@@ -1,140 +1,152 @@
-import { OTP } from "../../models/otp.model.js";
-import { User } from "../../models/user.model.js";
-
-import { generateOTP } from "../../common/helpers/otp.helper.js";
+import {
+  compareOTP,
+  generateOTP,
+  getOTPExpiry,
+  hashOTP,
+} from "../../common/helpers/otp.helper.js";
 
 import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../common/helpers/jwt.helper.js";
 
-import { AppError } from "../../common/errors/AppError.js";
-import type { RegisterDto } from "./auth.types.js";
 import { BadRequestError } from "../../common/errors/BadRequestError.js";
+import { ConflictError } from "../../common/errors/ConflictError.js";
+import { NotFoundError } from "../../common/errors/NotFoundError.js";
+import { smsProvider } from "../../common/helpers/sms.helper.js";
+import { AUTH_CONSTANTS, AUTH_MESSAGES } from "./auth.constants.js";
+import type { AuthPurpose, AuthResponse, RegisterDto } from "./auth.types.js";
+import { toAuthUser } from "./auth.types.js";
+import * as AuthRepository from "./auth.repository.js";
 
-// sendOTP
-export const sendOTP = async (phoneNumber: string) => {
-  const otp = generateOTP();
+type AuthUserDocument = Awaited<ReturnType<typeof AuthRepository.createUser>>;
 
-  await OTP.deleteMany({
-    phoneNumber,
-  });
+const assertCanRequestOtp = async (
+  phoneNumber: string,
+  purpose: AuthPurpose,
+) => {
+  const existingUser = await AuthRepository.findUserByPhoneNumber(phoneNumber);
 
-  await OTP.create({
-    phoneNumber,
-    otp,
-    expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-  });
+  if (purpose === "register" && existingUser) {
+    throw new ConflictError(AUTH_MESSAGES.USER_ALREADY_EXISTS);
+  }
 
-  console.log("OTP =>", otp);
+  if (purpose === "login" && !existingUser) {
+    throw new NotFoundError(AUTH_MESSAGES.USER_NOT_FOUND);
+  }
 
-  return true;
+  const latestOtp = await AuthRepository.findLatestActiveOtp(phoneNumber);
+
+  if (!latestOtp) {
+    return;
+  }
+
+  const cooldownEndsAt = new Date(
+    latestOtp.createdAt.getTime() + AUTH_CONSTANTS.OTP_RESEND_COOLDOWN * 1000,
+  );
+
+  if (cooldownEndsAt > new Date()) {
+    throw new BadRequestError(AUTH_MESSAGES.OTP_RESEND_COOLDOWN);
+  }
 };
-// TO DO:  will become MSG91 integration.
-// registerUser
-export const register = async (payload: RegisterDto) => {
-  const { name, email, phoneNumber, otp } = payload;
 
-  // Check existing user:
-  const existingUser = await User.findOne({
+const issueOtp = async (phoneNumber: string): Promise<void> => {
+  const otp = generateOTP();
+  const hashedOtp = await hashOTP(otp);
+
+  await AuthRepository.deleteActiveOtps(phoneNumber);
+
+  await AuthRepository.createOtp(
     phoneNumber,
+    hashedOtp,
+    getOTPExpiry(),
+  );
+
+  await smsProvider.sendOTP(phoneNumber, otp);
+};
+
+const verifyOtpOrThrow = async (phoneNumber: string, otp: string) => {
+  const otpRecord = await AuthRepository.findLatestActiveOtp(phoneNumber);
+
+  if (!otpRecord) {
+    throw new BadRequestError(AUTH_MESSAGES.INVALID_OTP);
+  }
+
+  if (otpRecord.expiresAt < new Date()) {
+    await AuthRepository.markOtpUsed(otpRecord);
+    throw new BadRequestError(AUTH_MESSAGES.OTP_EXPIRED);
+  }
+
+  if (otpRecord.attempts >= AUTH_CONSTANTS.OTP_MAX_ATTEMPTS) {
+    await AuthRepository.markOtpUsed(otpRecord);
+    throw new BadRequestError(AUTH_MESSAGES.OTP_ATTEMPTS_EXCEEDED);
+  }
+
+  const isOtpValid = await compareOTP(otp, otpRecord.otp);
+
+  if (!isOtpValid) {
+    await AuthRepository.incrementOtpAttempts(otpRecord);
+    throw new BadRequestError(AUTH_MESSAGES.INVALID_OTP);
+  }
+
+  await AuthRepository.markOtpUsed(otpRecord);
+};
+
+const createAuthResponse = (user: AuthUserDocument): AuthResponse => {
+  const accessToken = generateAccessToken({
+    sub: user._id.toString(),
+    type: "access",
   });
+
+  const refreshToken = generateRefreshToken({
+    sub: user._id.toString(),
+    type: "refresh",
+  });
+
+  return {
+    user: toAuthUser(user),
+    accessToken,
+    refreshToken,
+  };
+};
+
+export const sendRegisterOTP = async (phoneNumber: string): Promise<void> => {
+  await assertCanRequestOtp(phoneNumber, "register");
+  await issueOtp(phoneNumber);
+};
+
+export const sendLoginOTP = async (phoneNumber: string): Promise<void> => {
+  await assertCanRequestOtp(phoneNumber, "login");
+  await issueOtp(phoneNumber);
+};
+
+export const register = async (payload: RegisterDto): Promise<AuthResponse> => {
+  const existingUser = await AuthRepository.findUserByPhoneNumber(
+    payload.phoneNumber,
+  );
 
   if (existingUser) {
-    throw new AppError("User already exists", 409);
+    throw new ConflictError(AUTH_MESSAGES.USER_ALREADY_EXISTS);
   }
-  // Check OTP:
-  const otpRecord = await OTP.findOne({
-    phoneNumber,
-    otp,
-    isUsed: false,
-  });
 
-  if (!otpRecord) {
-    throw new AppError("Invalid OTP", 400);
-  }
-  // Check expiry:
-  if (otpRecord.expiresAt < new Date()) {
-    throw new AppError("OTP expired", 400);
-  }
-  // Create user:
-  //   const user = await User.create({
-  //     name,
-  //     email,
-  //     phoneNumber,
-  //   });
+  await verifyOtpOrThrow(payload.phoneNumber, payload.otp);
 
-  const newUser = new User({
-    name,
-    email,
-    phoneNumber,
-  });
-  const user = await User.create(newUser);
+  const user = await AuthRepository.createUser(payload);
 
-  // Mark OTP used:
-  otpRecord.isUsed = true;
-  await otpRecord.save();
-
-  // Generate tokens:
-  const accessToken = generateAccessToken({
-    userId: user._id,
-  });
-
-  const refreshToken = generateRefreshToken({
-    userId: user._id,
-  });
-
-  // Return:
-  return {
-    user,
-    accessToken,
-    refreshToken,
-  };
+  return createAuthResponse(user);
 };
 
-// verifyOTP (Login)
-export const verifyOTP = async (phoneNumber: string, otp: string) => {
-  //   Find user:
-  const user = await User.findOne({
-    phoneNumber,
-    isDeleted: false,
-  });
+export const verifyLoginOTP = async (
+  phoneNumber: string,
+  otp: string,
+): Promise<AuthResponse> => {
+  const user = await AuthRepository.findUserByPhoneNumber(phoneNumber);
 
   if (!user) {
-    throw new AppError("User not found", 404);
+    throw new NotFoundError(AUTH_MESSAGES.USER_NOT_FOUND);
   }
-  //   Find OTP:
-  const otpRecord = await OTP.findOne({
-    phoneNumber,
-    otp,
-    isUsed: false,
-  });
 
-  if (!otpRecord) {
-    //   throw new AppError("Invalid OTP", 400);
-    throw new BadRequestError("Invalid OTP");
-  }
-  //   Expire check:
-  if (otpRecord.expiresAt < new Date()) {
-    throw new BadRequestError("OTP expired");
-  }
-  //   Mark OTP used:
-  otpRecord.isUsed = true;
+  await verifyOtpOrThrow(phoneNumber, otp);
 
-  await otpRecord.save();
-  //   Generate tokens:
-  const accessToken = generateAccessToken({
-    userId: user._id,
-  });
-
-  const refreshToken = generateRefreshToken({
-    userId: user._id,
-  });
-
-  //   return:
-  return {
-    user,
-    accessToken,
-    refreshToken,
-  };
+  return createAuthResponse(user);
 };

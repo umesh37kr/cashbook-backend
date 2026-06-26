@@ -6,6 +6,8 @@ export interface IOTP extends Document {
   expiresAt: Date;
   attempts: number;
   isUsed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const otpSchema = new Schema<IOTP>(
