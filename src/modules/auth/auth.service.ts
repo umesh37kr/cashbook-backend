@@ -10,9 +10,11 @@ import {
   generateRefreshToken,
 } from "../../common/helpers/jwt.helper.js";
 
-import { BadRequestError } from "../../common/errors/BadRequestError.js";
-import { ConflictError } from "../../common/errors/ConflictError.js";
-import { NotFoundError } from "../../common/errors/NotFoundError.js";
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from "../../common/errors/AppError.js";
 import { smsProvider } from "../../common/helpers/sms.helper.js";
 import { AUTH_CONSTANTS, AUTH_MESSAGES } from "./auth.constants.js";
 import type { AuthPurpose, AuthResponse, RegisterDto } from "./auth.types.js";
