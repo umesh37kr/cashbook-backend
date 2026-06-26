@@ -10,6 +10,7 @@ import {
 
 import { AppError } from "../../common/errors/AppError.js";
 import type { RegisterDto } from "./auth.types.js";
+import { BadRequestError } from "../../common/errors/BadRequestError.js";
 
 // sendOTP
 export const sendOTP = async (phoneNumber: string) => {
@@ -110,11 +111,12 @@ export const verifyOTP = async (phoneNumber: string, otp: string) => {
   });
 
   if (!otpRecord) {
-    throw new AppError("Invalid OTP", 400);
+    //   throw new AppError("Invalid OTP", 400);
+    throw new BadRequestError("Invalid OTP");
   }
   //   Expire check:
   if (otpRecord.expiresAt < new Date()) {
-    throw new AppError("OTP expired", 400);
+    throw new BadRequestError("OTP expired");
   }
   //   Mark OTP used:
   otpRecord.isUsed = true;

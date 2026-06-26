@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import * as AuthController from "./auth.controller.js";
 
-import { validateRequest } from "../../common/middlewares/validate.middleware.js";
+import { validate } from "../../common/middlewares/validate.middleware.js";
 
 import {
   sendOtpSchema,
@@ -12,27 +12,15 @@ import {
 
 const router = Router();
 
-router.post(
-  "/send-otp",
-  validateRequest(sendOtpSchema),
-  AuthController.sendOTP,
-);
+router.post("/send-otp", validate(sendOtpSchema), AuthController.sendOTP);
 
-router.post(
-  "/register",
-  validateRequest(registerSchema),
-  AuthController.register,
-);
+router.post("/register", validate(registerSchema), AuthController.register);
 
-router.post(
-  "/login/send-otp",
-  validateRequest(sendOtpSchema),
-  AuthController.sendOTP,
-);
+router.post("/login/send-otp", validate(sendOtpSchema), AuthController.sendOTP);
 
 router.post(
   "/login/verify-otp",
-  validateRequest(verifyOtpSchema),
+  validate(verifyOtpSchema),
   AuthController.verifyOTP,
 );
 

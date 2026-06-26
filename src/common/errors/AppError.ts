@@ -1,6 +1,11 @@
+/**
+ * Base application error.
+ * All custom errors should extend this class.
+ */
+
 export class AppError extends Error {
-  statusCode: number;
-  isOperational: boolean;
+  public readonly statusCode: number;
+  public readonly isOperational: boolean;
 
   constructor(message: string, statusCode: number) {
     super(message);

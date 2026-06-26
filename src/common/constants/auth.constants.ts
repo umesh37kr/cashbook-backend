@@ -1,7 +1,15 @@
-export const OTP_EXPIRY_MINUTES = 5;
+import { env } from "../../config/env.js";
 
-export const MAX_OTP_ATTEMPTS = 5;
+export const AUTH_CONSTANTS = {
+  OTP_LENGTH: 6,
 
-export const ACCESS_TOKEN_EXPIRY = "15m";
+  OTP_EXPIRY_MINUTES: env.OTP.EXPIRY_MINUTES,
 
-export const REFRESH_TOKEN_EXPIRY = "30d";
+  OTP_RESEND_COOLDOWN: env.OTP.RESEND_COOLDOWN,
+
+  OTP_MAX_ATTEMPTS: env.OTP.MAX_ATTEMPTS,
+
+  ACCESS_TOKEN_EXPIRY: env.JWT.ACCESS_EXPIRES_IN,
+
+  REFRESH_TOKEN_EXPIRY: env.JWT.REFRESH_EXPIRES_IN,
+} as const;
