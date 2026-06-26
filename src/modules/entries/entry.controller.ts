@@ -43,7 +43,6 @@ export const createEntry = catchAsync(async (req, res) => {
 });
 
 export const getEntries = catchAsync(async (req, res) => {
-  console.log("req.query", req.query);
   const result = await EntryService.getEntries(
     getUserId(req.user),
     getParam(req.params.bookId, "bookId"),
